@@ -7,8 +7,10 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "fs:read-all",
-    "fs:write-all",
-    "fs:allow-exists"
+    "fs:default",
+    "fs:allow-applocaldata-read-recursive",
+    "fs:allow-applocaldata-write-recursive",
+    "fs:allow-exists",
+    "fs:allow-mkdir"
   ]
 }
