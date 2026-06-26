@@ -31,7 +31,6 @@ interface DashboardTabProps {
   onClearTemplateFile: () => void;
   onClearOutputDir: () => void;
   activeDragTarget: "input" | "template" | "output" | null;
-  onDragTargetChange: (target: "input" | "template" | "output" | null) => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -51,8 +50,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onClearInputFile,
   onClearTemplateFile,
   onClearOutputDir,
-  activeDragTarget,
-  onDragTargetChange
+  activeDragTarget
 }) => {
   const missingNCCsCount = detectedNCCs.filter(n => !n.matched).length;
   const hasMissingSuppliers = missingNCCsCount > 0;

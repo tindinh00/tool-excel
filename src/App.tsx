@@ -489,7 +489,6 @@ function App() {
             onClearTemplateFile={handleClearTemplateFile}
             onClearOutputDir={handleClearOutputDir}
             activeDragTarget={activeDragTarget}
-            onDragTargetChange={setActiveDragTarget}
           />
         )}
 
