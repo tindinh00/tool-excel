@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, ask, message } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { readFile, writeFile, exists } from "@tauri-apps/plugin-fs";
 import {
@@ -41,6 +41,22 @@ function App() {
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number; ncc: string }>({ current: 0, total: 0, ncc: "" });
   const [statusMsg, setStatusMsg] = useState<string>("");
+
+  const safeMessage = async (msg: string, title = "Thông báo", kind: "info" | "error" = "info") => {
+    try {
+      await message(msg, { title, kind });
+    } catch (e) {
+      alert(msg);
+    }
+  };
+
+  const safeAsk = async (msg: string, title = "Xác nhận") => {
+    try {
+      return await ask(msg, { title, kind: "warning" });
+    } catch (e) {
+      return confirm(msg);
+    }
+  };
 
   // Modals / Editing States for Suppliers
   const [showSupplierModal, setShowSupplierModal] = useState<boolean>(false);
@@ -274,31 +290,54 @@ function App() {
 
   const handleSaveSupplier = async (supplierForm: Supplier) => {
     let updatedSuppliers: Supplier[];
-    if (editingSupplier) {
+    const isEditing = !!editingSupplier;
+
+    if (isEditing) {
       updatedSuppliers = suppliers.map(s =>
         s.code.toLowerCase().trim() === editingSupplier.code.toLowerCase().trim() ? supplierForm : s
       );
     } else {
       if (suppliers.some(s => s.code.toLowerCase().trim() === supplierForm.code.toLowerCase().trim())) {
-        alert("Mã bộ lọc nhà cung cấp này đã tồn tại!");
+        await safeMessage("Mã bộ lọc nhà cung cấp này đã tồn tại!", "Lỗi", "error");
         return;
       }
       updatedSuppliers = [...suppliers, supplierForm];
     }
 
-    setSuppliers(updatedSuppliers);
-    await saveSuppliers(updatedSuppliers);
-    setShowSupplierModal(false);
-    setEditingSupplier(null);
+    try {
+      setSuppliers(updatedSuppliers);
+      await saveSuppliers(updatedSuppliers);
+      setShowSupplierModal(false);
+      setEditingSupplier(null);
+      
+      if (isEditing) {
+        await safeMessage("Cập nhật thông tin nhà cung cấp thành công!", "Thành công", "info");
+      } else {
+        await safeMessage("Thêm mới nhà cung cấp thành công!", "Thành công", "info");
+      }
+    } catch (err: any) {
+      console.error(err);
+      // Even if file saving fails (e.g. in browser), close modal and notify
+      setShowSupplierModal(false);
+      setEditingSupplier(null);
+      await safeMessage(`Lưu cấu hình thành công trong bộ nhớ tạm thời, nhưng gặp lỗi khi lưu file: ${err.message || err}`, "Cảnh báo", "error");
+    }
   };
 
   const handleDeleteSupplier = async (code: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa cấu hình nhà cung cấp "${code}" không?`)) {
+    const confirmed = await safeAsk(`Bạn có chắc chắn muốn xóa cấu hình nhà cung cấp "${code}" không?`, "Xác nhận xóa");
+    if (!confirmed) {
       return;
     }
     const updated = suppliers.filter(s => s.code !== code);
-    setSuppliers(updated);
-    await saveSuppliers(updated);
+    try {
+      setSuppliers(updated);
+      await saveSuppliers(updated);
+      await safeMessage("Đã xóa cấu hình nhà cung cấp thành công!", "Thành công", "info");
+    } catch (err: any) {
+      console.error(err);
+      await safeMessage(`Đã xóa khỏi bộ nhớ tạm thời, nhưng gặp lỗi khi lưu file: ${err.message || err}`, "Cảnh báo", "error");
+    }
   };
 
   const handleSaveMappingConfig = async (updatedMapping: MappingConfig) => {

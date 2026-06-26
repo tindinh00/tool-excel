@@ -94,7 +94,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
               <input
                 type="text"
                 className="form-control"
-                required
                 value={form.shortCode}
                 onChange={e => setForm({ ...form, shortCode: e.target.value })}
               />
@@ -160,10 +159,15 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
               type="button"
               className="btn-secondary"
               onClick={onClose}
+              style={{ height: "40px", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}
             >
               Hủy
             </button>
-            <button type="submit" className="btn-primary" style={{ padding: "10px 20px", display: "flex", alignItems: "center", gap: "6px" }}>
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ height: "40px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "0 20px" }}
+            >
               <SaveIcon /> Lưu Lại
             </button>
           </div>
