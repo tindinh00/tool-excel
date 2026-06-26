@@ -30,6 +30,8 @@ interface DashboardTabProps {
   onClearInputFile: () => void;
   onClearTemplateFile: () => void;
   onClearOutputDir: () => void;
+  activeDragTarget: "input" | "template" | "output" | null;
+  onDragTargetChange: (target: "input" | "template" | "output" | null) => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -48,7 +50,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onOpenOutputDir,
   onClearInputFile,
   onClearTemplateFile,
-  onClearOutputDir
+  onClearOutputDir,
+  activeDragTarget,
+  onDragTargetChange
 }) => {
   const missingNCCsCount = detectedNCCs.filter(n => !n.matched).length;
   const hasMissingSuppliers = missingNCCsCount > 0;
@@ -76,7 +80,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
           
           <div
-            className={`file-box ${inputFile ? "has-file" : ""}`}
+            className={`file-box ${inputFile ? "has-file" : ""} ${activeDragTarget === "input" ? "drag-over" : ""}`}
             onClick={onSelectInputFile}
           >
             <span className="file-icon" style={{ display: "flex", alignItems: "center" }}><DocumentIcon /></span>

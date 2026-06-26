@@ -253,6 +253,10 @@ export async function parseInputData(dataBuffer: ArrayBuffer): Promise<OrderItem
     }
   });
 
+  if (items.length === 0) {
+    throw new Error('Không tìm thấy đơn hàng hợp lệ nào. Vui lòng kiểm tra lại xem file đầu vào có đúng mẫu hay không (Dữ liệu bắt đầu từ dòng 4, cột G chứa Nhà cung cấp, cột H chứa Mã hàng).');
+  }
+
   return items;
 }
 
@@ -313,7 +317,8 @@ export async function generateInvoice(
           const formula = cell.value.formula || '';
           const adjustedFormula = formula
             .replace(new RegExp(`${startRow + 1}`, 'g'), `${targetRowIndex}`)
-            .replace(new RegExp(`${startRow}`, 'g'), `${targetRowIndex}`);
+            .replace(new RegExp(`${startRow}`, 'g'), `${targetRowIndex}`)
+            .replace(/\s*\+\s*10\b/g, '');
           targetCell.value = { formula: adjustedFormula };
         }
       });
@@ -338,10 +343,11 @@ export async function generateInvoice(
     sh.getCell(header.phone).value = supplierInfo.phone;
     sh.getCell(header.fax).value = supplierInfo.fax;
     sh.getCell(header.currency).value = supplierInfo.currency || 'VND';
-    sh.getCell(header.supplier_code_cell).value = supplierInfo.shortCode || '';
+    sh.getCell(header.supplier_code_cell).value = null;
   } else {
     // Fallback if no config matches
     sh.getCell(header.supplier_name).value = nccName;
+    sh.getCell(header.supplier_code_cell).value = null;
   }
 
   // Fill Date and Invoice Details
@@ -372,9 +378,13 @@ export async function generateInvoice(
       }
     }
 
-    // Set Invoice Number
-    const firstOrder = orders[0];
-    sh.getCell(header.invoice_number_cell).value = firstOrder.invoiceNo;
+    // Clear G7 invoice number cell
+    sh.getCell(header.invoice_number_cell).value = null;
+
+    // Update F7 formula to "ĐMH-"&TEXT(F6,"yymmdd")
+    sh.getCell('F7').value = {
+      formula: `"ĐMH-"&TEXT(${header.date},"yymmdd")`
+    };
   }
 
   // 6. Fill Table items
@@ -408,6 +418,8 @@ export async function generateInvoice(
     if (amountCell.value && typeof amountCell.value === 'object' && 'formula' in amountCell.value) {
       amountFormula = amountCell.value.formula || amountFormula;
     }
+    // Clean up any "+10" from template
+    amountFormula = amountFormula.replace(/\s*\+\s*10\b/g, '');
     const rowAmount = evaluateRowFormula(amountFormula, order.qty, order.price, rowIndex, cols);
     subtotal += rowAmount;
     amountCell.value = {
@@ -461,6 +473,25 @@ export async function generateInvoice(
   };
 
   sh.getCell(`${footer.total_words_col}${wordsRowIndex}`).value = numberToWords(totalPayment);
+
+  // Apply thin border to the merged total words range (C{wordsRowIndex}:F{wordsRowIndex+1})
+  // to prevent it from losing borders during row shifts
+  const startColNum = 3; // "C"
+  const endColNum = 6;   // "F"
+  const startR = wordsRowIndex;
+  const endR = wordsRowIndex + 1;
+  
+  for (let r = startR; r <= endR; r++) {
+    for (let c = startColNum; c <= endColNum; c++) {
+      const cell = sh.getCell(r, c);
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+      };
+    }
+  }
 
   // Sync dates inside text descriptions (e.g. C21 delivery place cell)
   const finalDateForSync = earliestDate || (orders[0]?.date ? new Date(orders[0].date) : null);

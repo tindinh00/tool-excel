@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { open, ask, message } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { readFile, writeFile, exists } from "@tauri-apps/plugin-fs";
+import { downloadDir } from "@tauri-apps/api/path";
+import { listen } from "@tauri-apps/api/event";
 import {
   Supplier,
   MappingConfig,
@@ -34,6 +36,73 @@ function App() {
   const [templateFile, setTemplateFile] = useState<string>("");
   const [templateBuffer, setTemplateBuffer] = useState<ArrayBuffer | null>(null);
   const [outputDir, setOutputDir] = useState<string>("");
+
+  // Drag and Drop States and Effects
+  const [activeDragTarget, setActiveDragTarget] = useState<"input" | "template" | "output" | null>(null);
+  const dragTargetRef = useRef<"input" | "template" | "output" | null>(null);
+
+  useEffect(() => {
+    dragTargetRef.current = activeDragTarget;
+  }, [activeDragTarget]);
+
+  useEffect(() => {
+    let unlistenEnter: (() => void) | undefined;
+    let unlistenLeave: (() => void) | undefined;
+    let unlistenDrop: (() => void) | undefined;
+
+    async function setupDragDrop() {
+      try {
+        unlistenEnter = await listen("tauri://drag-enter", () => {
+          document.body.classList.add('window-dragging');
+          setActiveDragTarget("input"); // Sáng ô Bước 1 lên để báo hiệu nhận file
+        });
+
+        unlistenLeave = await listen("tauri://drag-leave", () => {
+          document.body.classList.remove('window-dragging');
+          setActiveDragTarget(null);
+        });
+
+        unlistenDrop = await listen<{ paths: string[] }>("tauri://drag-drop", async (event) => {
+          document.body.classList.remove('window-dragging');
+          setActiveDragTarget(null);
+          
+          const paths = event.payload.paths;
+          if (paths && paths.length > 0) {
+            const filePath = paths[0];
+            
+            if (filePath.toLowerCase().endsWith('.xlsx')) {
+              setStatusMsg("Đang đọc file dữ liệu...");
+              try {
+                const fileData = await readFile(filePath);
+                const parsedItems = await parseInputData(fileData.buffer);
+                setInputFile(filePath);
+                setOrderItems(parsedItems);
+                setStatusMsg(`Đã nạp thành công ${parsedItems.length} đơn hàng.`);
+              } catch (err: any) {
+                console.error(err);
+                setStatusMsg(`Lỗi khi đọc file: ${err.message || err}`);
+                await safeMessage(`Không thể nạp file: ${err.message || err}`, "Lỗi đọc file", "error");
+              }
+            } else {
+              // Nếu là kéo thả thư mục thì tự động nhận diện làm thư mục lưu
+              setOutputDir(filePath);
+              setStatusMsg(`Đã đặt thư mục lưu: ${filePath}`);
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Failed to setup drag drop listeners:", err);
+      }
+    }
+
+    setupDragDrop();
+
+    return () => {
+      if (unlistenEnter) unlistenEnter();
+      if (unlistenLeave) unlistenLeave();
+      if (unlistenDrop) unlistenDrop();
+    };
+  }, []);
 
   // Parsing & Export States
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -79,6 +148,14 @@ function App() {
         setTemplateFile("Mẫu mặc định (Đã tích hợp)");
       } catch (err) {
         console.error("Error loading default template:", err);
+      }
+
+      // Load default output directory (Downloads folder)
+      try {
+        const dlDir = await downloadDir();
+        setOutputDir(dlDir);
+      } catch (err) {
+        console.error("Error getting downloads directory:", err);
       }
     }
     initConfigs();
@@ -293,6 +370,14 @@ function App() {
     const isEditing = !!editingSupplier;
 
     if (isEditing) {
+      const isDuplicate = suppliers.some(s => 
+        s.code.toLowerCase().trim() === supplierForm.code.toLowerCase().trim() && 
+        s.code.toLowerCase().trim() !== editingSupplier.code.toLowerCase().trim()
+      );
+      if (isDuplicate) {
+        await safeMessage("Mã bộ lọc nhà cung cấp này đã tồn tại ở nhà cung cấp khác!", "Lỗi", "error");
+        return;
+      }
       updatedSuppliers = suppliers.map(s =>
         s.code.toLowerCase().trim() === editingSupplier.code.toLowerCase().trim() ? supplierForm : s
       );
@@ -403,6 +488,8 @@ function App() {
             onClearInputFile={handleClearInputFile}
             onClearTemplateFile={handleClearTemplateFile}
             onClearOutputDir={handleClearOutputDir}
+            activeDragTarget={activeDragTarget}
+            onDragTargetChange={setActiveDragTarget}
           />
         )}
 

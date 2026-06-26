@@ -215,6 +215,16 @@ body {
   background: var(--color-surface-soft);
 }
 
+.file-box.drag-over {
+  border: 2px dashed var(--color-primary) !important;
+  background: var(--color-surface-soft) !important;
+  transform: scale(1.005);
+}
+
+body.window-dragging .file-box * {
+  pointer-events: none;
+}
+
 .file-box.has-file {
   border-color: var(--color-primary);
   background: var(--color-canvas);

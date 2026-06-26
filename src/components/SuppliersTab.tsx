@@ -31,6 +31,18 @@ export const SuppliersTab: React.FC<SuppliersTabProps> = ({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          position: "sticky",
+          top: "-32px",
+          zIndex: 10,
+          background: "var(--color-surface-card)",
+          marginTop: "-32px",
+          paddingTop: "32px",
+          marginLeft: "-32px",
+          paddingLeft: "32px",
+          marginRight: "-32px",
+          paddingRight: "32px",
+          paddingBottom: "20px",
+          borderBottom: "1px solid var(--color-hairline)",
           marginBottom: "20px"
         }}
       >

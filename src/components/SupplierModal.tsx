@@ -84,7 +84,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 type="text"
                 className="form-control"
                 required
-                disabled={!!editingSupplier}
                 value={form.code}
                 onChange={e => setForm({ ...form, code: e.target.value })}
               />
