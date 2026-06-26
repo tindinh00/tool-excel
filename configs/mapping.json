@@ -1,0 +1,42 @@
+{
+  "header": {
+    "supplier_name": "B6",
+    "address": "B7",
+    "tax_code": "B8",
+    "phone": "B9",
+    "date": "F6",
+    "supplier_code_cell": "G6",
+    "invoice_number_cell": "G7",
+    "currency": "F8",
+    "fax": "F9"
+  },
+  "table": {
+    "start_row": 13,
+    "template_rows_count": 2,
+    "columns": {
+      "item_code": "A",
+      "description": "B",
+      "unit": "C",
+      "quantity": "D",
+      "price": "E",
+      "amount": "F"
+    }
+  },
+  "footer": {
+    "total_before_tax_offset": 0,
+    "vat_rate_offset": 1,
+    "vat_rate_col": "C",
+    "vat_amount_offset": 1,
+    "vat_amount_col": "F",
+    "total_payment_offset": 2,
+    "total_payment_col": "F",
+    "total_words_offset": 3,
+    "total_words_col": "C",
+    "delivery_place_offset": 7,
+    "delivery_place_col": "C",
+    "payment_terms_offset": 8,
+    "payment_terms_col": "C",
+    "notes_offset": 9,
+    "notes_col": "C"
+  }
+}

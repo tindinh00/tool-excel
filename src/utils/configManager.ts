@@ -1,0 +1,379 @@
+import { readTextFile, writeTextFile, exists, mkdir, BaseDirectory } from '@tauri-apps/plugin-fs';
+import { Supplier, MappingConfig } from './excelProcessor';
+
+const CONFIG_DIR = 'configs';
+const SUPPLIERS_FILE = 'configs/suppliers.json';
+const MAPPING_FILE = 'configs/mapping.json';
+
+const DEFAULT_SUPPLIERS: Supplier[] = [
+  {
+    "code": "Nhựa Nhật Phong",
+    "fullName": "CÔNG TY TNHH THƯƠNG MẠI SẢN XUẤT NHỰA NHẬT PHONG",
+    "address": "672A29 Phan Văn Trị, Phường 10, Quận Gò Vấp, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0315198603",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "NP"
+  },
+  {
+    "code": "Tâm Đức Tín",
+    "fullName": "CÔNG TY CỔ PHẦN THƯƠNG MẠI DỊCH VỤ TÂM ĐỨC TÍN",
+    "address": "482/11/14A Nơ Trang Long, Phường 13, Quận Bình Thạnh, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0311338218",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "TĐT"
+  },
+  {
+    "code": "Nhựa Cao Thăng",
+    "fullName": "CÔNG TY TNHH THƯƠNG MẠI NHỰA CAO THĂNG",
+    "address": "173 Nguyễn Trãi, Phường 02, Quận 5, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0313357022",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "CT"
+  },
+  {
+    "code": "Nhựa Phú Trung",
+    "fullName": "CÔNG TY TNHH MTV NHỰA PHÚ TRUNG",
+    "address": "46 Điện Biên Phủ, Phường Chính Gián, Quận Thanh Khê, Thành phố Đà Nẵng, Việt Nam",
+    "taxCode": "0402165072",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "PT"
+  },
+  {
+    "code": "Bao Bì Tấn Phong",
+    "fullName": "CÔNG TY TNHH BAO BÌ TẤN PHONG",
+    "address": "284/1 Hòa Bình, Phường Hiệp Tân, Quận Tân Phú, TP. Hồ Chí Minh, Việt Nam",
+    "taxCode": "0306095778",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "TP"
+  },
+  {
+    "code": "Sao Mai Phú Quốc",
+    "fullName": "CÔNG TY TNHH ĐẦU TƯ SAO MAI PHÚ QUỐC",
+    "address": "43 Thạnh Mỹ Lợi, Phường Thạnh Mỹ Lợi, Quận 2, Thành phố Hồ Chí Minh",
+    "taxCode": "0316072498",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "SMPQ"
+  },
+  {
+    "code": "Hưng Đông",
+    "fullName": "CÔNG TY CỔ PHẦN ĐẦU TƯ HƯNG ĐÔNG",
+    "address": "33/3K Ấp 3, Xã Xuân Thới Sơn, Huyện Hóc Môn, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0312372187",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "HĐ"
+  },
+  {
+    "code": "Hanny Việt Nam",
+    "fullName": "CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ HANNY VIỆT NAM",
+    "address": "75/5B Đường Bình Quới, Phường 27, Quận Bình Thạnh, Thành phố Hồ Chí Minh",
+    "taxCode": "0315555862",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "HNY"
+  },
+  {
+    "code": "Nhựa Tín Hưng",
+    "fullName": "CÔNG TY TNHH MTV NHỰA TÍN HƯNG",
+    "address": "2/48 Khu phố Bình Đường 1, Phường An Bình, Thành phố Dĩ An, Tỉnh Bình Dương, Việt Nam",
+    "taxCode": "3703084591",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "TH"
+  },
+  {
+    "code": "Dragon Leader",
+    "fullName": "CÔNG TY CỔ PHẦN DRAGON LEADER",
+    "address": "262A đường Pasteur, Phường Võ Thị Sáu, Quận 3, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0316246987",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "DRG"
+  },
+  {
+    "code": "Bao Bì Bến Thành",
+    "fullName": "CÔNG TY TNHH BAO BÌ BẾN THÀNH",
+    "address": "Số 3, đường 18, khu hành chính Nhị Đồng 2, Phường Dĩ An, Thành phố Dĩ An, Tỉnh Bình Dương, Việt Nam",
+    "taxCode": "3702420748",
+    "phone": "02743732888",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "BBBT"
+  },
+  {
+    "code": "Dầu Khí - Hóa Chất Nhựa",
+    "fullName": "CHI NHÁNH PHÂN PHỐI NGUYÊN LIỆU CÔNG NGHIỆP DẦU KHÍ - CÔNG TY CỔ PHẦN HÓA CHẤT NHỰA",
+    "address": "Lầu 6, Tòa nhà Petro Việt Nam, số 1-5 Lê Duẩn, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh",
+    "taxCode": "4300368426-003",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "DKMT"
+  },
+  {
+    "code": "Đỉnh Cao",
+    "fullName": "CÔNG TY TNHH THƯƠNG MẠI ĐỈNH CAO",
+    "address": "Tầng 1, Tòa nhà Packsimex, 52 Đông Du, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0305088425",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "ĐC"
+  },
+  {
+    "code": "Agrina",
+    "fullName": "CÔNG TY TNHH CÔNG NGHIỆP AGRINA",
+    "address": "Số 38B Đường Tỉnh Lộ 830D, Ấp 5, Xã Mỹ Yên, Huyện Bến Lức, Tỉnh Long An, Việt Nam",
+    "taxCode": "1101746205",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "AGR"
+  },
+  {
+    "code": "Việt Nhật",
+    "fullName": "CÔNG TY TNHH SỢI DỆT MAY VIỆT NHẬT",
+    "address": "Số 700/01, Tổ 01, Khu phố Chiêu Liêu, Phường Tân Đông Hiệp, Thành phố Dĩ An, Tỉnh Bình Dương",
+    "taxCode": "3700675010",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "VN"
+  },
+  {
+    "code": "Hóa Chất Nhựa Đà Nẵng",
+    "fullName": "CHI NHÁNH CÔNG TY CỔ PHẦN HÓA CHẤT NHỰA ĐÀ NẴNG TẠI TP HỒ CHÍ MINH",
+    "address": "255 Đinh Bộ Lĩnh, Phường 26, Quận Bình Thạnh, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0400432621-001",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "NDN"
+  },
+  {
+    "code": "Nhựa Vinh Phát",
+    "fullName": "CÔNG TY TNHH MỘT THÀNH VIÊN THƯƠNG MẠI NHỰA VINH PHÁT",
+    "address": "241B Tân Hòa Đông, Phường 14, Quận 6, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0314189596",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "VP"
+  },
+  {
+    "code": "Vinmos",
+    "fullName": "CÔNG TY TNHH VINMOS",
+    "address": "Ấp Nhơn Hòa 1, Xã Đức Hòa Thượng, Huyện Đức Hòa, Tỉnh Long An, Việt Nam",
+    "taxCode": "1101822343",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "VM"
+  },
+  {
+    "code": "Hoàng Phúc",
+    "fullName": "CÔNG TY TNHH XNK TM HOÀNG PHÚC",
+    "address": "Ấp Kinh 2A, Xã Phước Lập, Huyện Tân Phước, Tỉnh Tiền Giang, Việt Nam",
+    "taxCode": "1201443719",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "HP"
+  },
+  {
+    "code": "T.O.P Việt Nam",
+    "fullName": "CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VÀ DU LỊCH T.O.P VIỆT NAM",
+    "address": "Tầng 12, Tòa nhà Sudico, Khu đô thị Mỹ Đình - Mễ Trì, Phường Mỹ Đình 1, Quận Nam Từ Liêm, Thành phố Hà Nội, Việt Nam",
+    "taxCode": "0104540955",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "T.O.P"
+  },
+  {
+    "code": "Việt Nam Thế Giới",
+    "fullName": "CÔNG TY CỔ PHẦN TẬP ĐOÀN VIỆT NAM THẾ GIỚI",
+    "address": "137/65 Lê Văn Sỹ, Phường 13, Quận Phú Nhuận, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0313815498",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "VNTG"
+  },
+  {
+    "code": "JP Nhân Hòa",
+    "fullName": "CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ JP NHÂN HÒA",
+    "address": "197 Tô Hiến Thành, Phường 13, Quận 10, Thành phố Hồ Chí Minh, Việt Nam",
+    "taxCode": "0316703168",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "JP"
+  },
+  {
+    "code": "GC Marketing",
+    "fullName": "CÔNG TY TNHH GC MARKETING SOLUTIONS VIỆT NAM",
+    "address": "Phòng 2A.1, Tầng 16, Tòa nhà AB Tower, 76A Lê Lai, Phường Bến Thành, Quận 1, Thành phố Hồ Chí Minh",
+    "taxCode": "117002783194",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "GC"
+  },
+  {
+    "code": "Stavian Hóa Chất",
+    "fullName": "CÔNG TY CỔ PHẦN STAVIAN HÓA CHẤT",
+    "address": "Lô số 16, đường 206 khu A, Khu công nghiệp Phố Nối A, Xã Đình Dù, Huyện Văn Lâm, Tỉnh Hưng Yên, Việt Nam",
+    "taxCode": "0104160054",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "STV"
+  },
+  {
+    "code": "Hóa Dầu Long Sơn",
+    "fullName": "CÔNG TY TNHH HÓA DẦU LONG SƠN",
+    "address": "Thôn 2, Xã Long Sơn, Thành phố Vũng Tàu, Tỉnh Bà Rịa - Vũng Tàu, Việt Nam",
+    "taxCode": "3500890966",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "LS"
+  },
+  {
+    "code": "Bao Bì Đại Lục",
+    "fullName": "CÔNG TY CỔ PHẦN BAO BÌ ĐẠI LỤC",
+    "address": "49/23 Lũy Bán Bích, Phường Tân Thới Hòa, Quận Tân Phú, Thành phố Hồ Chí Minh",
+    "taxCode": "0304381815",
+    "phone": "",
+    "fax": "",
+    "currency": "VND",
+    "shortCode": "ĐL"
+  }
+];
+
+const DEFAULT_MAPPING: MappingConfig = {
+  header: {
+    supplier_name: "B6",
+    address: "B7",
+    tax_code: "B8",
+    phone: "B9",
+    date: "F6",
+    supplier_code_cell: "G6",
+    invoice_number_cell: "G7",
+    currency: "F8",
+    fax: "F9"
+  },
+  table: {
+    start_row: 13,
+    template_rows_count: 2,
+    columns: {
+      item_code: "A",
+      description: "B",
+      unit: "C",
+      quantity: "D",
+      price: "E",
+      amount: "F"
+    }
+  },
+  footer: {
+    total_before_tax_offset: 0,
+    vat_rate_offset: 1,
+    vat_rate_col: "C",
+    vat_amount_offset: 1,
+    vat_amount_col: "F",
+    total_payment_offset: 2,
+    total_payment_col: "F",
+    total_words_offset: 3,
+    total_words_col: "C",
+    delivery_place_offset: 7,
+    delivery_place_col: "C",
+    payment_terms_offset: 8,
+    payment_terms_col: "C",
+    notes_offset: 9,
+    notes_col: "C"
+  }
+};
+
+async function ensureConfigDir() {
+  try {
+    const dirExists = await exists(CONFIG_DIR, { baseDir: BaseDirectory.AppLocalData });
+    if (!dirExists) {
+      await mkdir(CONFIG_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    }
+  } catch (err) {
+    console.error('Error ensuring config dir:', err);
+    // Try to create it anyway
+    try {
+      await mkdir(CONFIG_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    } catch (_) {}
+  }
+}
+
+export async function loadSuppliers(): Promise<Supplier[]> {
+  await ensureConfigDir();
+  try {
+    const fileExists = await exists(SUPPLIERS_FILE, { baseDir: BaseDirectory.AppLocalData });
+    if (!fileExists) {
+      await saveSuppliers(DEFAULT_SUPPLIERS);
+      return DEFAULT_SUPPLIERS;
+    }
+    const content = await readTextFile(SUPPLIERS_FILE, { baseDir: BaseDirectory.AppLocalData });
+    return JSON.parse(content);
+  } catch (err) {
+    console.error('Error loading suppliers:', err);
+    return DEFAULT_SUPPLIERS;
+  }
+}
+
+export async function saveSuppliers(suppliers: Supplier[]): Promise<void> {
+  await ensureConfigDir();
+  try {
+    await writeTextFile(SUPPLIERS_FILE, JSON.stringify(suppliers, null, 2), { baseDir: BaseDirectory.AppLocalData });
+  } catch (err) {
+    console.error('Error saving suppliers:', err);
+    throw err;
+  }
+}
+
+export async function loadMapping(): Promise<MappingConfig> {
+  await ensureConfigDir();
+  try {
+    const fileExists = await exists(MAPPING_FILE, { baseDir: BaseDirectory.AppLocalData });
+    if (!fileExists) {
+      await saveMapping(DEFAULT_MAPPING);
+      return DEFAULT_MAPPING;
+    }
+    const content = await readTextFile(MAPPING_FILE, { baseDir: BaseDirectory.AppLocalData });
+    return JSON.parse(content);
+  } catch (err) {
+    console.error('Error loading mapping config:', err);
+    return DEFAULT_MAPPING;
+  }
+}
+
+export async function saveMapping(mapping: MappingConfig): Promise<void> {
+  await ensureConfigDir();
+  try {
+    await writeTextFile(MAPPING_FILE, JSON.stringify(mapping, null, 2), { baseDir: BaseDirectory.AppLocalData });
+  } catch (err) {
+    console.error('Error saving mapping config:', err);
+    throw err;
+  }
+}
